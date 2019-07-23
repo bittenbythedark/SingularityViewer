@@ -252,6 +252,9 @@ extern BOOL gRandomizeFramerate;
 extern BOOL gPeriodicSlowFrame;
 extern BOOL gDebugGL;
 
+#if LL_DARWIN
+extern BOOL gHiDPISupport;
+#endif
 ////////////////////////////////////////////////////////////
 // All from the last globals push...
 const F32 DEFAULT_AFK_TIMEOUT = 5.f * 60.f; // time with no input before user flagged as Away From Keyboard
@@ -531,6 +534,9 @@ static void settings_to_globals()
 	gDebugWindowProc = gSavedSettings.getBOOL("DebugWindowProc");
 	gShowObjectUpdates = gSavedSettings.getBOOL("ShowObjectUpdates");
 	LLWorldMapView::sMapScale =  llmax(.1f,gSavedSettings.getF32("MapScale"));
+#if LL_DARWIN
+	gHiDPISupport = gSavedSettings.getBOOL("RenderHiDPI");
+#endif
 	LLHoverView::sShowHoverTips = gSavedSettings.getBOOL("ShowHoverTips");
 }
 
@@ -2766,6 +2772,15 @@ bool LLAppViewer::initWindow()
 		gViewerWindow->toggleFullscreen(FALSE);
 			// request to go full screen... which will be delayed until login
 	}
+#ifdef LL_DARWIN
+	//Satisfy both MAINT-3135 (OSX 10.6 and earlier) MAINT-3288 (OSX 10.7 and later)
+	LLOSInfo& os_info = LLOSInfo::instance();
+	if (os_info.mMajorVer == 10 && os_info.mMinorVer < 7)
+	{
+		if ( os_info.mMinorVer == 6 && os_info.mBuild < 8 )
+			gViewerWindow->getWindow()->setOldResize(true);
+	}
+#endif
 	
 	if (gSavedSettings.getBOOL("WindowMaximized"))
 	{

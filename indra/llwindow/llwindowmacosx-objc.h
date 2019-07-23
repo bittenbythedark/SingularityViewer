@@ -31,6 +31,9 @@
 #include <map>
 #include <vector>
 
+//fir CGSize
+#include <CoreGraphics/CGGeometry.h>
+
 typedef std::vector<std::pair<int, bool> > segment_t;
 
 typedef std::vector<int> segment_lengths;
@@ -96,7 +99,7 @@ void hideNSCursorTillMove(bool hide);
 void requestUserAttention();
 long showAlert(std::string title, std::string text, int type);
 float getScaleFactor(GLViewRef view); //[CR:Retina]
-
+void setResizeMode(bool oldresize, void* glview);
 NSWindowRef createNSWindow(int x, int y, int width, int height);
 
 #include <OpenGL/OpenGL.h>
@@ -104,14 +107,20 @@ GLViewRef createOpenGLView(NSWindowRef window, unsigned int samples, bool vsync)
 void glSwapBuffers(void* context);
 CGLContextObj getCGLContextObj(GLViewRef view);
 unsigned long getVramSize(GLViewRef view);
+float getDeviceUnitSize(GLViewRef view);
+const CGPoint getContentViewBoundsPosition(NSWindowRef window);
+const CGSize getContentViewBoundsSize(NSWindowRef window);
+const CGSize getDeviceContentViewSize(NSWindowRef window, GLViewRef view);
 void getContentViewBounds(NSWindowRef window, float* bounds);
 void getScaledContentViewBounds(NSWindowRef window, GLViewRef view, float* bounds);
+const CGSize getDeviceContentViewSize(NSWindowRef window, GLViewRef view);
 void getWindowSize(NSWindowRef window, float* size);
 void setWindowSize(NSWindowRef window, int width, int height);
 void getCursorPos(NSWindowRef window, float* pos);
 void makeWindowOrderFront(NSWindowRef window);
 void convertScreenToWindow(NSWindowRef window, float *coord);
 void convertWindowToScreen(NSWindowRef window, float *coord);
+void convertScreenToView(NSWindowRef window, float *coord);
 void convertRectToScreen(NSWindowRef window, float *coord);
 void convertRectFromScreen(NSWindowRef window, float *coord);
 void setWindowPos(NSWindowRef window, float* pos);

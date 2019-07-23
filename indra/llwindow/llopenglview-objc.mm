@@ -27,7 +27,8 @@
 #import "llopenglview-objc.h"
 #import "llwindowmacosx-objc.h"
 #import "llappdelegate-objc.h"
-#import <Carbon/Carbon.h> // for keycodes
+
+extern BOOL gHiDPISupport;
 
 #pragma mark local functions
 
@@ -167,13 +168,16 @@ attributedStringInfo getSegments(NSAttributedString *str)
 	}
 }
 
+- (void)setOldResize:(bool)oldresize
+{
+    mOldResize = oldresize;
+}
 - (void)windowResized:(NSNotification *)notification
 {
 	if (NSAppKitVersionNumber >= NSAppKitVersionNumber10_7)
     {
-        NSSize size = [self frame].size;
-		NSSize scaled_size = [self convertSizeToBacking:size];
-		callResize(scaled_size.width, scaled_size.height);
+        NSSize dev_sz = gHiDPISupport ? [self convertSizeToBacking:[self frame].size] : [self frame].size;
+        callResize(dev_sz.width, dev_sz.height);
     }
 }
 
@@ -268,7 +272,10 @@ attributedStringInfo getSegments(NSAttributedString *str)
     [self setWantsBestResolutionOpenGLSurface:YES];
 	
 	[self setPixelFormat:pixelFormat];
-	
+
+	//for retina support
+	[self setWantsBestResolutionOpenGLSurface:gHiDPISupport];
+
 	[self setOpenGLContext:glContext];
 	
 	[glContext setView:self];
@@ -325,6 +332,10 @@ attributedStringInfo getSegments(NSAttributedString *str)
 
 - (void) mouseDown:(NSEvent *)theEvent
 {
+    NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+    mMousePos[0] = mPoint.x;
+    mMousePos[1] = mPoint.y;
+
     // Apparently people still use this?
     if ([theEvent modifierFlags] & NSCommandKeyMask &&
         !([theEvent modifierFlags] & NSControlKeyMask) &&
@@ -353,7 +364,7 @@ attributedStringInfo getSegments(NSAttributedString *str)
         callRightMouseUp(mMousePos, [theEvent modifierFlags]);
         mSimulatedRightClick = false;
     } else {
-        NSPoint mPoint = [self convertPointToBacking:[theEvent locationInWindow]];
+        NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
         mMousePos[0] = mPoint.x;
         mMousePos[1] = mPoint.y;
         callLeftMouseUp(mMousePos, [theEvent modifierFlags]);
@@ -362,28 +373,32 @@ attributedStringInfo getSegments(NSAttributedString *str)
 
 - (void) rightMouseDown:(NSEvent *)theEvent
 {
+    NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+    mMousePos[0] = mPoint.x;
+    mMousePos[1] = mPoint.y;
 	callRightMouseDown(mMousePos, [theEvent modifierFlags]);
 }
 
 - (void) rightMouseUp:(NSEvent *)theEvent
 {
+    NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+    mMousePos[0] = mPoint.x;
+    mMousePos[1] = mPoint.y;
 	callRightMouseUp(mMousePos, [theEvent modifierFlags]);
 }
 
 - (void)mouseMoved:(NSEvent *)theEvent
 {
-	// We need a point to be able to convert these.
-	NSPoint delta = NSMakePoint([theEvent deltaX], [theEvent deltaY]);
-	NSPoint scaled_delta = [self convertPointToBacking:delta];
-	
-	double mouseDeltas[2] = {
-		scaled_delta.x,
-		scaled_delta.y
+    NSPoint dev_delta = gHiDPISupport ? [self convertPointToBacking:NSMakePoint([theEvent deltaX], [theEvent deltaY])] : NSMakePoint([theEvent deltaX], [theEvent deltaY]);
+
+	double mouseDeltas[] = {
+		float(dev_delta.x),
+		float(dev_delta.y)
 	};
 	
 	callDeltaUpdate(mouseDeltas, 0);
 	
-	NSPoint mPoint = [self convertPointToBacking:[theEvent locationInWindow]];
+    NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
 	mMousePos[0] = mPoint.x;
 	mMousePos[1] = mPoint.y;
 	callMouseMoved(mMousePos, 0);
@@ -397,18 +412,17 @@ attributedStringInfo getSegments(NSAttributedString *str)
 	// Trust the deltas supplied by NSEvent.
 	// The old CoreGraphics APIs we previously relied on are now flagged as obsolete.
 	// NSEvent isn't obsolete, and provides us with the correct deltas.
-	// We need a point to be able to convert these.
-    NSPoint delta = NSMakePoint([theEvent deltaX], [theEvent deltaY]);
-	NSPoint scaled_delta = [self convertPointToBacking:delta];
-	
-	double mouseDeltas[2] = {
-		scaled_delta.x,
-		scaled_delta.y
+
+    NSPoint dev_delta = gHiDPISupport ? [self convertPointToBacking:NSMakePoint([theEvent deltaX], [theEvent deltaY])] : NSMakePoint([theEvent deltaX], [theEvent deltaY]);
+
+	double mouseDeltas[] = {
+		float(dev_delta.x),
+		float(dev_delta.y)
 	};
 	
 	callDeltaUpdate(mouseDeltas, 0);
 	
-	NSPoint mPoint = [self convertPointToBacking:[theEvent locationInWindow]];
+	NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
 	mMousePos[0] = mPoint.x;
 	mMousePos[1] = mPoint.y;
 	callMouseMoved(mMousePos, 0);
@@ -416,11 +430,17 @@ attributedStringInfo getSegments(NSAttributedString *str)
 
 - (void) otherMouseDown:(NSEvent *)theEvent
 {
+    NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+    mMousePos[0] = mPoint.x;
+    mMousePos[1] = mPoint.y;
 	callMiddleMouseDown(mMousePos, [theEvent modifierFlags]);
 }
 
 - (void) otherMouseUp:(NSEvent *)theEvent
 {
+    NSPoint mPoint = gHiDPISupport ? [self convertPointToBacking:[theEvent locationInWindow]] : [theEvent locationInWindow];
+    mMousePos[0] = mPoint.x;
+    mMousePos[1] = mPoint.y;
 	callMiddleMouseUp(mMousePos, [theEvent modifierFlags]);
 }
 
@@ -499,13 +519,13 @@ attributedStringInfo getSegments(NSAttributedString *str)
     NSInteger mask = 0;
     switch([theEvent keyCode])
     {        
-        case kVK_Shift:
+        case 56:
             mask = NSShiftKeyMask;
             break;
-        case kVK_Option:
+        case 58:
             mask = NSAlternateKeyMask;
             break;
-        case kVK_Control:
+        case 59:
             mask = NSControlKeyMask;
             break;
         default:

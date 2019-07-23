@@ -171,6 +171,16 @@ BOOL LLWindowCallbacks::handleDeviceChange(LLWindow *window)
 	return FALSE;
 }
 
+BOOL LLWindowCallbacks::handleDPIChanged(LLWindow *window, F32 ui_scale_factor, S32 window_width, S32 window_height)
+{
+	return FALSE;
+}
+
+BOOL LLWindowCallbacks::handleWindowDidChangeScreen(LLWindow *window)
+{
+	return FALSE;
+}
+
 void LLWindowCallbacks::handlePingWatchdog(LLWindow *window, const char * msg)
 {
 
@@ -186,10 +196,6 @@ void LLWindowCallbacks::handleResumeWatchdog(LLWindow *window)
 
 }
 
-bool LLWindowCallbacks::handleDPIScaleChange(LLWindow *window, float xDPIScale, float yDPIScale, U32 width, U32 height)
-{
-	return false;
-}
 
 std::string LLWindowCallbacks::translateString(const char* tag)
 {

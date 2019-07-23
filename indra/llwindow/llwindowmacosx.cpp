@@ -46,7 +46,7 @@
 
 extern BOOL gDebugWindowProc;
 extern BOOL gUseMultGL;
-
+BOOL gHiDPISupport = TRUE;
 // culled from winuser.h
 //const S32	WHEEL_DELTA = 120;     /* Value for rolling one detent */
 // On the Mac, the scroll wheel reports a delta of 1 for each detent.
@@ -391,6 +391,14 @@ void callWindowUnhide()
 	if ( gWindowImplementation && gWindowImplementation->getCallbacks() )
 	{
 		gWindowImplementation->getCallbacks()->handleActivate(gWindowImplementation, true);
+	}
+}
+
+void callWindowDidChangeScreen()
+{
+	if ( gWindowImplementation && gWindowImplementation->getCallbacks() )
+	{
+		gWindowImplementation->getCallbacks()->handleWindowDidChangeScreen(gWindowImplementation);
 	}
 }
 
@@ -859,14 +867,15 @@ BOOL LLWindowMacOSX::getSize(LLCoordScreen *size)
 	}
 	else if(mWindow)
 	{
-		getScaledContentViewBounds(mWindow, mGLView, rect);
+		const CGSize & sz = gHiDPISupport ? getDeviceContentViewSize(mWindow, mGLView) : getContentViewBoundsSize(mWindow);
 
-		size->mX = rect[2];
-		size->mY = rect[3];
+		size->mX = sz.width;
+		size->mY = sz.height;
+        err = noErr;
 	}
 	else
 	{
-		LL_ERRS() << "LLWindowMacOSX::getPosition(): no window and not fullscreen!" << LL_ENDL;
+		LL_ERRS() << "LLWindowMacOSX::getSize(): no window and not fullscreen!" << LL_ENDL;
 	}
 
 	return (err == noErr);
@@ -885,14 +894,17 @@ BOOL LLWindowMacOSX::getSize(LLCoordWindow *size)
 	}
 	else if(mWindow)
 	{
-		getScaledContentViewBounds(mWindow, mGLView, rect);
+		const CGSize & sz = gHiDPISupport ? getDeviceContentViewSize(mWindow, mGLView) : getContentViewBoundsSize(mWindow);
 		
-		size->mX = rect[2];
-		size->mY = rect[3];
+		size->mX = sz.width;
+		size->mY = sz.height;
+        err = noErr;
+        
+        
 	}
 	else
 	{
-		LL_ERRS() << "LLWindowMacOSX::getPosition(): no window and not fullscreen!" << LL_ENDL;
+		LL_ERRS() << "LLWindowMacOSX::getSize(): no window and not fullscreen!" << LL_ENDL;
 	}
 	
 	return (err == noErr);
@@ -1129,7 +1141,8 @@ BOOL LLWindowMacOSX::getCursorPosition(LLCoordWindow *position)
 		cursor_point[0] += mCursorLastEventDeltaX;
 		cursor_point[1] += mCursorLastEventDeltaY;
 	}
-    float scale = getScaleFactor();
+
+	float scale = getSystemUISize();
 	position->mX = cursor_point[0] * scale;
 	position->mY = cursor_point[1] * scale;
 
@@ -1319,14 +1332,14 @@ BOOL LLWindowMacOSX::convertCoords(LLCoordScreen from, LLCoordWindow* to)
 	if(mWindow)
 	{
 		float mouse_point[2];
-        float scale_factor = getScaleFactor();
+
 		mouse_point[0] = from.mX;
 		mouse_point[1] = from.mY;
 		
 		convertScreenToWindow(mWindow, mouse_point);
 
-		to->mX = mouse_point[0] * scale_factor;
-		to->mY = mouse_point[1] * scale_factor;
+		to->mX = mouse_point[0];
+		to->mY = mouse_point[1];
 
 		return TRUE;
 	}
@@ -1338,9 +1351,10 @@ BOOL LLWindowMacOSX::convertCoords(LLCoordWindow from, LLCoordScreen *to)
 	if(mWindow)
 	{
 		float mouse_point[2];
-        float scale_factor = getScaleFactor();
-		mouse_point[0] = from.mX / scale_factor;
-		mouse_point[1] = from.mY / scale_factor;
+
+		mouse_point[0] = from.mX;
+		mouse_point[1] = from.mY;
+		
 		convertWindowToScreen(mWindow, mouse_point);
 
 		to->mX = mouse_point[0];
@@ -1886,17 +1900,10 @@ MASK LLWindowMacOSX::modifiersToMask(S16 modifiers)
 	return mask;
 }
 
-//[CR:Retina]
-F32 LLWindowMacOSX::getScaleFactor()
+F32 LLWindowMacOSX::getSystemUISize()
 {
-	return ::getScaleFactor(mGLView);
+	return gHiDPISupport ? ::getDeviceUnitSize(mGLView) : LLWindow::getSystemUISize();
 }
-
-void LLWindowMacOSX::updateUnreadCount(S32 num_conversations)
-{
-	updateBadge(num_conversations);
-}
-
 #if LL_OS_DRAGDROP_ENABLED
 /*
 S16 LLWindowMacOSX::dragTrackingHandler(DragTrackingMessage message, WindowRef theWindow,

@@ -188,7 +188,8 @@ public:
 	/*virtual*/ void handleDataCopy(LLWindow *window, S32 data_type, void *data);
 	/*virtual*/ BOOL handleTimerEvent(LLWindow *window);
 	/*virtual*/ BOOL handleDeviceChange(LLWindow *window);
-	/*virtual*/ bool handleDPIScaleChange(LLWindow *window, float xDPIScale, float yDPIScale, U32 width = 0, U32 height = 0);
+	/*virtual*/ BOOL handleDPIChanged(LLWindow *window, F32 ui_scale_factor, S32 window_width, S32 window_height);
+	/*virtual*/ BOOL handleWindowDidChangeScreen(LLWindow *window);
 
 	/*virtual*/ void handlePingWatchdog(LLWindow *window, const char * msg);
 	/*virtual*/ void handlePauseWatchdog(LLWindow *window);

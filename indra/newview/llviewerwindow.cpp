@@ -247,7 +247,11 @@ S32 OVERLAY_BAR_HEIGHT = 20;
 
 const U8 NO_FACE = 255;
 BOOL gQuietSnapshot = FALSE;
-
+// Minimum value for UIScaleFactor, also defined in preferences, ui_scale_slider
+static const F32 MIN_UI_SCALE = 0.75f;
+// 4.0 in preferences, but win10 supports larger scaling and value is used more as
+// sanity check, so leaving space for larger values from DPI updates.
+static const F32 MAX_UI_SCALE = 7.0f;
 const F32 MIN_AFK_TIME = 2.f; // minimum time after setting away state before coming back
 const F32 MAX_FAST_FRAME_TIME = 0.5f;
 const F32 FAST_FRAME_INCREMENT = 0.1f;
@@ -1579,20 +1583,27 @@ BOOL LLViewerWindow::handleDeviceChange(LLWindow *window)
 	return FALSE;
 }
 
-bool LLViewerWindow::handleDPIScaleChange(LLWindow *window, float xDPIScale, float yDPIScale, U32 width, U32 height)
+BOOL LLViewerWindow::handleDPIChanged(LLWindow *window, F32 ui_scale_factor, S32 window_width, S32 window_height)
 {
-	LL_INFOS() << "handleDPIScaleChange" << LL_ENDL;
-	if (mDPIScaleX != xDPIScale || mDPIScaleY != yDPIScale)
-	{
-		LL_INFOS() << "handleDPIScaleChange APPLY" << LL_ENDL;
-		mDPIScaleX = xDPIScale;
-		mDPIScaleY = yDPIScale;
-		if (!mWindow->getFullscreen()) {
-			reshape(width ? width : getWindowWidthRaw(), height ? height : getWindowHeightRaw());
-			return true;
-		}
-	}
-	return false;
+    if (ui_scale_factor >= MIN_UI_SCALE && ui_scale_factor <= MAX_UI_SCALE)
+    {
+        LLViewerWindow::reshape(window_width, window_height);
+        mResDirty = true;
+        return TRUE;
+    }
+    else
+    {
+        LL_WARNS() << "DPI change caused UI scale to go out of bounds: " << ui_scale_factor << LL_ENDL;
+        return FALSE;
+    }
+}
+
+BOOL LLViewerWindow::handleWindowDidChangeScreen(LLWindow *window)
+{
+	LLCoordScreen window_rect;
+	mWindow->getSize(&window_rect);
+	reshape(window_rect.mX, window_rect.mY);
+	return TRUE;
 }
 
 void LLViewerWindow::handlePingWatchdog(LLWindow *window, const char * msg)
@@ -1744,9 +1755,10 @@ LLViewerWindow::LLViewerWindow(
 
 	// Get the real window rect the window was created with (since there are various OS-dependent reasons why
 	// the size of a window or fullscreen context may have been adjusted slightly...)
+	F32 ui_scale_factor = llclamp(gSavedSettings.getF32("UIScaleFactor"), MIN_UI_SCALE, MAX_UI_SCALE) * mWindow->getSystemUISize();
+	
 	mDisplayScale.setVec(llmax(1.f / mWindow->getPixelAspectRatio(), 1.f), llmax(mWindow->getPixelAspectRatio(), 1.f));
-	mDisplayScale.scaleVec(getUIScale());
-
+	mDisplayScale *= ui_scale_factor;
 	LLUI::setScaleFactor(mDisplayScale);
 
 	{
@@ -5674,34 +5686,20 @@ F32 LLViewerWindow::getDisplayAspectRatio() const
 
 void LLViewerWindow::calcDisplayScale()
 {
-	LLVector2 ui_scale_factor = getUIScale();
+	F32 ui_scale_factor = llclamp(gSavedSettings.getF32("UIScaleFactor"), MIN_UI_SCALE, MAX_UI_SCALE) * mWindow->getSystemUISize();
 	LLVector2 display_scale;
 	display_scale.setVec(llmax(1.f / mWindow->getPixelAspectRatio(), 1.f), llmax(mWindow->getPixelAspectRatio(), 1.f));
-	if(mWindow->getFullscreen())
-	{
-		F32 height_normalization = gSavedSettings.getBOOL("UIAutoScale") ? ((F32)mWindowRectRaw.getHeight() / display_scale.mV[VY]) / 768.f : 1.f;
-		display_scale.scaleVec(ui_scale_factor * height_normalization);
-	}
-	else
-	{
-		display_scale.scaleVec(ui_scale_factor);
-	}
+	display_scale *= ui_scale_factor;
 
 	// limit minimum display scale
 	if (display_scale.mV[VX] < MIN_DISPLAY_SCALE || display_scale.mV[VY] < MIN_DISPLAY_SCALE)
 	{
 		display_scale *= MIN_DISPLAY_SCALE / llmin(display_scale.mV[VX], display_scale.mV[VY]);
 	}
-
-	if (mWindow->getFullscreen())
-	{
-		display_scale.mV[0] = ll_round(display_scale.mV[0], 2.0f/(F32) mWindowRectRaw.getWidth());
-		display_scale.mV[1] = ll_round(display_scale.mV[1], 2.0f/(F32) mWindowRectRaw.getHeight());
-	}
-
+	
 	if (display_scale != mDisplayScale)
 	{
-		LL_INFOS() << "Setting display scale to " << display_scale << LL_ENDL;
+		LL_INFOS() << "Setting display scale to " << display_scale << " for ui scale: " << ui_scale_factor << LL_ENDL;
 
 		mDisplayScale = display_scale;
 		// Init default fonts

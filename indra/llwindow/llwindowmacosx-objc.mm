@@ -225,6 +225,11 @@ GLViewRef createOpenGLView(NSWindowRef window, unsigned int samples, bool vsync)
 	return glview;
 }
 
+void setResizeMode(bool oldresize, void* glview)
+{
+    [(LLOpenGLView *)glview setOldResize:oldresize];
+}
+
 void glSwapBuffers(void* context)
 {
 	[(NSOpenGLContext*)context flushBuffer];
@@ -246,6 +251,10 @@ unsigned long getVramSize(GLViewRef view)
 	return [(LLOpenGLView *)view getVramSize];
 }
 
+float getDeviceUnitSize(GLViewRef view)
+{
+	return [(LLOpenGLView*)view convertSizeToBacking:NSMakeSize(1, 1)].width;
+}
 void getContentViewBounds(NSWindowRef window, float* bounds)
 {
 	bounds[0] = [[(LLNSWindow*)window contentView] bounds].origin.x;
@@ -254,13 +263,13 @@ void getContentViewBounds(NSWindowRef window, float* bounds)
 	bounds[3] = [[(LLNSWindow*)window contentView] bounds].size.height;
 }
 
-void getScaledContentViewBounds(NSWindowRef window, GLViewRef view, float* bounds)
+const CGSize getContentViewBoundsSize(NSWindowRef window)
 {
-    NSRect b = [(NSOpenGLView*)view convertRectToBacking:[[(LLNSWindow*)window contentView] bounds]];
-	bounds[0] = b.origin.x;
-	bounds[1] = b.origin.y;
-	bounds[2] = b.size.width;
-	bounds[3] = b.size.height;
+	return [[(LLNSWindow*)window contentView] bounds].size;
+}
+const CGSize getDeviceContentViewSize(NSWindowRef window, GLViewRef view)
+{
+    return [(NSOpenGLView*)view convertRectToBacking:[[(LLNSWindow*)window contentView] bounds]].size;
 }
 
 void getWindowSize(NSWindowRef window, float* size)
@@ -303,7 +312,9 @@ void makeWindowOrderFront(NSWindowRef window)
 
 void convertScreenToWindow(NSWindowRef window, float *coord)
 {
-	NSRect point = NSMakeRect(coord[0], coord[1], 0, 0);
+	NSRect point;
+	point.origin.x = coord[0];
+	point.origin.y = coord[1];
 	point = [(LLNSWindow*)window convertRectFromScreen:point];
 	coord[0] = point.origin.x;
 	coord[1] = point.origin.y;
@@ -311,7 +322,12 @@ void convertScreenToWindow(NSWindowRef window, float *coord)
 
 void convertRectToScreen(NSWindowRef window, float *coord)
 {
-	NSRect point = NSMakeRect(coord[0], coord[1], coord[2], coord[3]);
+	NSRect point;
+	point.origin.x = coord[0];
+	point.origin.y = coord[1];
+	point.size.width = coord[2];
+	point.size.height = coord[3];
+	
 	point = [(LLNSWindow*)window convertRectToScreen:point];
 	
 	coord[0] = point.origin.x;
@@ -322,13 +338,27 @@ void convertRectToScreen(NSWindowRef window, float *coord)
 
 void convertRectFromScreen(NSWindowRef window, float *coord)
 {
-	NSRect point = NSMakeRect(coord[0], coord[1], coord[2], coord[3]);
+	NSRect point;
+	point.origin.x = coord[0];
+	point.origin.y = coord[1];
+	point.size.width = coord[2];
+	point.size.height = coord[3];
+	
 	point = [(LLNSWindow*)window convertRectFromScreen:point];
 	
 	coord[0] = point.origin.x;
 	coord[1] = point.origin.y;
 	coord[2] = point.size.width;
 	coord[3] = point.size.height;
+}
+
+void convertScreenToView(NSWindowRef window, float *coord)
+{
+	NSRect point;
+	point.origin.x = coord[0];
+	point.origin.y = coord[1];
+	point.origin = [(LLNSWindow*)window convertScreenToBase:point.origin];
+	point.origin = [[(LLNSWindow*)window contentView] convertPoint:point.origin fromView:nil];
 }
 
 void convertWindowToScreen(NSWindowRef window, float *coord)
