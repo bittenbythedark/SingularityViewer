@@ -4031,6 +4031,68 @@ BOOL LLWindowWin32::handleImeRequests(WPARAM w_param, LPARAM l_param, LRESULT *r
 }
 
 //static
+F32 LLWindowWin32::getSystemUISize()
+{
+	float scale_value = 0;
+	HWND hWnd = (HWND)getPlatformWindow();
+	HDC hdc = GetDC(hWnd);
+	HMONITOR hMonitor;
+	HANDLE hProcess = GetCurrentProcess();
+	PROCESS_DPI_AWARENESS dpi_awareness;
+
+	HMODULE hShcore = LoadLibrary(L"shcore.dll");
+
+	if (hShcore != NULL)
+	{
+		GetProcessDpiAwarenessType pGPDA;
+		pGPDA = (GetProcessDpiAwarenessType)GetProcAddress(hShcore, "GetProcessDpiAwareness");
+		GetDpiForMonitorType pGDFM;
+		pGDFM = (GetDpiForMonitorType)GetProcAddress(hShcore, "GetDpiForMonitor");
+		if (pGPDA != NULL && pGDFM != NULL)
+		{
+			pGPDA(hProcess, &dpi_awareness);
+			if (dpi_awareness == PROCESS_PER_MONITOR_DPI_AWARE)
+			{
+				POINT    pt;
+				UINT     dpix = 0, dpiy = 0;
+				HRESULT  hr = E_FAIL;
+				RECT     rect;
+
+				GetWindowRect(hWnd, &rect);
+				// Get the DPI for the monitor, on which the center of window is displayed and set the scaling factor
+				pt.x = (rect.left + rect.right) / 2;
+				pt.y = (rect.top + rect.bottom) / 2;
+				hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+				hr = pGDFM(hMonitor, MDT_EFFECTIVE_DPI, &dpix, &dpiy);
+				if (hr == S_OK)
+				{
+					scale_value = F32(dpix) / F32(USER_DEFAULT_SCREEN_DPI);
+				}
+				else
+				{
+					LL_WARNS() << "Could not determine DPI for monitor. Setting scale to default 100 %" << LL_ENDL;
+					scale_value = 1.0f;
+				}
+			}
+			else
+			{
+				LL_WARNS() << "Process is not per-monitor DPI-aware. Setting scale to default 100 %" << LL_ENDL;
+				scale_value = 1.0f;
+			}
+		}
+		FreeLibrary(hShcore);
+	}
+	else
+	{
+		LL_WARNS() << "Could not load shcore.dll library (included by <ShellScalingAPI.h> from Win 8.1 SDK). Using legacy DPI awareness API of Win XP/7" << LL_ENDL;
+		scale_value = F32(GetDeviceCaps(hdc, LOGPIXELSX)) / F32(USER_DEFAULT_SCREEN_DPI);
+	}
+
+	ReleaseDC(hWnd, hdc);
+	return scale_value;
+}
+
+//static
 std::vector<std::string> LLWindowWin32::getDynamicFallbackFontList()
 {
 	// Fonts previously in getFontListSans() have moved to fonts.xml.
