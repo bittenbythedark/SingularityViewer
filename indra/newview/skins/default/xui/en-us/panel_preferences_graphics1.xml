@@ -127,7 +127,7 @@
     <check_box bottom_delta="-18" control_name="RenderCompressTextures" height="16" label="Enable Texture Compression (Needs restart)" left="5" name="compressed_textures"
      tool_tip="Enabling this reduces GPU memory consumption at the expense of in-world texture quality."/>
      
-     <check_box bottom_delta="-18" control_name="RenderHiDPI" height="16" label="Enable support for HiDPI displays (requires restart)" left="5" name="use HiDPI"
+     <check_box bottom_delta="-20" control_name="RenderHiDPI" height="16" label="Enable support for HiDPI displays (requires restart)" left="5" name="use HiDPI"
      tool_tip="Enable OpenGL for High-Resolution Drawing."/>
      
      
